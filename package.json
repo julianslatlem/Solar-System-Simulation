@@ -1,0 +1,21 @@
+{
+  "type": "module",
+  "name": "threejs-solar-system-simulation",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "rollup": "^3.23.0"
+  },
+  "dependencies": {
+    "three": "^0.153.0"
+  }
+}
