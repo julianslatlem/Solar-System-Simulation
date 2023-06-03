@@ -33270,7 +33270,8 @@ const scene = new Scene();
 var guiVariables = {
     timescale: 50,
     debug: false,
-    musicVolume: 0.5,
+    musicVolume: 0,
+    rotateCameraWithEarth: false,
 };
 
 // Objects
@@ -33287,12 +33288,12 @@ const sunMat = new MeshBasicMaterial({map: new TextureLoader().load("Assets/Text
 const sun = new Mesh(sunGeometry, sunMat);
 scene.add(sun);
 
-const sunGlowMat1 = new MeshBasicMaterial({color: "#ffff00", transparent: true, opacity: 0.1, side: BackSide});
+const sunGlowMat1 = new MeshBasicMaterial({color: "#ffcc00", transparent: true, opacity: 0.15});
 const sunGlow1 = new Mesh(sunGeometry, sunGlowMat1);
 sunGlow1.scale.set(1.05, 1.05, 1.05);
 sun.add(sunGlow1);
 
-const sunGlowMat2 = new MeshBasicMaterial({color: "#ffff00", transparent: true, opacity: 0.05, side: BackSide});
+const sunGlowMat2 = new MeshBasicMaterial({color: "#ffff00", transparent: true, opacity: 0.07});
 const sunGlow2 = new Mesh(sunGeometry, sunGlowMat2);
 sunGlow2.scale.set(1.1, 1.1, 1.1);
 sun.add(sunGlow2);
@@ -33304,7 +33305,7 @@ normalMap: new TextureLoader().load("Assets/Normal Maps/8k_earth_normal_map.jpg"
 emissive: "#ffeeaa", emissiveMap: new TextureLoader().load("Assets/Textures/8k_earth_light_map.jpg"), emissiveIntensity: 0.3});
 const earth = new Mesh(earthGeometry, earthMat);
 earth.position.z = 500;
-earth.rotation.x = 0.2;
+earth.rotation.x = 0.24;
 scene.add(earth);
 
 const earthCloudsMat = new MeshPhongMaterial({alphaMap: new TextureLoader().load("Assets/Textures/8k_earth_clouds.jpg"), transparent: true});
@@ -33336,6 +33337,22 @@ const moonOrbit = new Mesh(new SphereGeometry(0, 0, 0), new MeshBasicMaterial())
 earth.add(moonOrbit);
 moonOrbit.add(moon);
 
+const marsOrbit = new Mesh(new SphereGeometry(0, 0, 0), new MeshBasicMaterial());
+const marsGeometry = new SphereGeometry(0.53, 48, 24);
+const marsMat = new MeshPhongMaterial({map: new TextureLoader().load("Assets/Textures/2k_sun.jpg")});
+const mars = new Mesh(marsGeometry, marsMat);
+scene.add(marsOrbit);
+mars.position.z = 700;
+marsOrbit.add(mars);
+
+const venusOrbit = new Mesh(new SphereGeometry(0, 0, 0), new MeshBasicMaterial());
+const venusGeometry = new SphereGeometry(0.3, 48, 24);
+const venusMat = new MeshPhongMaterial({map: new TextureLoader().load("Assets/Textures/2k_sun.jpg")});
+const venus = new Mesh(venusGeometry, venusMat);
+scene.add(venusOrbit);
+venus.position.z = 300;
+venusOrbit.add(venus);
+
 // Lighting
 
 const ambientLight = new AmbientLight("#ddddff", 0.003);
@@ -33361,11 +33378,14 @@ window.addEventListener('resize', () => {
     renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
 });
 
+// Controls
+
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.minDistance = 1.5;
 controls.maxDistance = 500;
 controls.target = earth.position;
+controls.autoRotate = true;
 
 // Debug
 
@@ -33397,14 +33417,24 @@ const moonline2 = new Line(new BufferGeometry().setFromPoints(moonpoints2), new 
 moon.add(moonline2);
 
 // GUI
-gui.add(moon.position, "z", 3, 30, 0.1).name("Moon Distance");
-gui.add(skybox, "visible").name("Toggle Skybox");
-gui.add(moon, "visible").name("Toggle Moon");
-gui.add(sun, "visible").name("Toggle Sun");
-gui.add(sunLight, "visible").name("Toggle Sunlight");
-gui.add(guiVariables, "timescale", 0.00, 1000, 0.01).name("Timescale");
-gui.add(guiVariables, "debug").name("Toggle Debug");
-gui.add(guiVariables, "musicVolume", 0, 1, 0.01).name("Music Volume");
+const timescaleFolder = gui.addFolder('Timescale');
+timescaleFolder.add(guiVariables, "timescale", 0.00, 1000, 0.01).name("Timescale");
+
+const toggleFolder = gui.addFolder("Toggles");
+toggleFolder.add(skybox, "visible").name("Toggle Skybox");
+toggleFolder.add(moon, "visible").name("Toggle Moon");
+toggleFolder.add(sun, "visible").name("Toggle Sun");
+toggleFolder.add(sunLight, "visible").name("Toggle Sunlight");
+
+const cameraFolder = gui.addFolder('Camera');
+cameraFolder.add(guiVariables, "rotateCameraWithEarth").name("Lock Camera to the Earth");
+
+const miscFolder = gui.addFolder('Misc');
+miscFolder.add(moon.position, "z", 3, 30, 0.1).name("Moon Distance");
+miscFolder.add(guiVariables, "musicVolume", 0, 1, 0.01).name("Music Volume");
+
+const debugFolder = gui.addFolder('Debug');
+debugFolder.add(guiVariables, "debug").name("Toggle Debug");
 
 // Audio
 
@@ -33417,7 +33447,6 @@ const audioLoader = new AudioLoader();
 audioLoader.load("Assets/Music/Honeylune Ridge.mp3", function(buffer) {
 	music.setBuffer(buffer);
 	music.setLoop(true);
-	music.setVolume(0.5);
 	music.play();
 });
 
@@ -33425,13 +33454,25 @@ audioLoader.load("Assets/Music/Honeylune Ridge.mp3", function(buffer) {
 
 function animate() {
     controls.update();
+    controls.autoRotateSpeed = (0.0774) * (guiVariables.timescale / 50);
+
+    if(guiVariables.rotateCameraWithEarth)
+    {
+        controls.autoRotate = false;
+    }
+    else
+    {
+        controls.autoRotate = true;
+    }
 
     skybox.position.x = camera.position.x;
     skybox.position.y = camera.position.y;
     skybox.position.z = camera.position.z;
 
-    skybox.rotateY(0.00027 / 2 * guiVariables.timescale / 50);
-    sun.rotateY(0.00027 / 2 * guiVariables.timescale / 50);
+    skybox.rotateY(-0.00027 / 2 * guiVariables.timescale / 50);
+    sun.rotateY(-0.00027 / 2 * guiVariables.timescale / 50);
+    marsOrbit.rotateY(-0.00001 * guiVariables.timescale / 50);
+    venusOrbit.rotateY(-0.00003 * guiVariables.timescale / 50);
     moonOrbit.rotateY(-0.0003 * guiVariables.timescale / 50);
     earth.rotateY(0.0006 * guiVariables.timescale / 50);
     earthClouds.rotateY(0.0002 * guiVariables.timescale / 50);
