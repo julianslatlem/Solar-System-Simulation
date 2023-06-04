@@ -81,6 +81,7 @@ var guiVariables = {
     jupiterDistance: 741380000,
     useHighResTextures: false,
     resolutionScale: 100,
+    useDeltaTime: false,
 };
 
 // Objects
@@ -194,7 +195,7 @@ camera.add(listener);
 
 // Renderer
 
-const renderer = new WebGLRenderer({canvas});
+const renderer = new WebGLRenderer({canvas, antialias: true});
 renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
 
 window.addEventListener('resize', () => {
@@ -260,7 +261,8 @@ toggleFolder.add(skybox, "visible").name("Skybox");
 toggleFolder.add(moon, "visible").name("Moon");
 toggleFolder.add(sun, "visible").name("Sun");
 toggleFolder.add(sunLight, "visible").name("Sunlight");
-toggleFolder.add(guiVariables, "useHighResTextures").name("Use High Resolution Textures");
+toggleFolder.add(guiVariables, "useHighResTextures").name("High Resolution Textures");
+toggleFolder.add(guiVariables, "useDeltaTime").name("Accurate Time (may cause jittering)");
 
 const cameraFolder = gui.addFolder('Camera');
 cameraFolder.add(guiVariables, "rotateCameraWithEarth").name("Lock Camera to Orbit");
@@ -286,13 +288,24 @@ debugFolder.add(guiVariables, "debug").name("Toggle Debug");
 var i = true;
 gameTime = 0;
 
+const clock = new Clock();
+
 function animate() {
-    timescale = guiVariables.timescale * (km / sec) * 52.5;
+    const delta = clock.getDelta();
+
+    if(guiVariables.useDeltaTime)
+    {
+        timescale = (guiVariables.timescale * (km / sec) * 52.5) * delta * 144;
+    }
+    else
+    {
+        timescale = (guiVariables.timescale * (km / sec) * 52.5);
+    }
 
     renderer.setSize(canvas.clientWidth * (guiVariables.resolutionScale / 100), canvas.clientHeight * (guiVariables.resolutionScale / 100), false);
 
     // Clock
-    gameTime += timescale * 72000 / 52.5;
+    gameTime += timescale * 1371; //72000 / 52.5;
     let clockDiv = document.getElementById("worldClock");
     let dateDiv = document.getElementById("worldDate");
 
@@ -328,9 +341,9 @@ function animate() {
     const marsOrbitSpeed = (guiVariables.marsOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.marsDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;;
     const jupiterOrbitSpeed = (guiVariables.jupiterOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.jupiterDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;;
     
-    controls.update();
     controls.autoRotateSpeed = (guiVariables.earthOrbitSpeed * (km / sec) * 572.95) / Math.sqrt(Math.pow(guiVariables.earthDistance / (100000 * Math.PI), 3)) * timescale;
     controls.minDistance = earth.scale.x * 1.5;
+    controls.update();
 
     if(guiVariables.rotateCameraWithEarth)
     {
