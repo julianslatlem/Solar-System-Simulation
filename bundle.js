@@ -33311,6 +33311,7 @@ var guiVariables = {
     moonOrbitSpeed: 3683,
     jupiterDistance: 741380000,
     useHighResTextures: false,
+    resolutionScale: 100,
 };
 
 // Objects
@@ -33505,6 +33506,7 @@ const miscFolder = gui.addFolder('Misc');
 miscFolder.add(guiVariables, "musicVolume", 0, 100, 0.1).name("Music Volume (%)");
 miscFolder.add(guiVariables, "jupiterOrbitSpeed", 0, 100, 0.001).name("Jupiter Orbit Speed (km/s)");
 miscFolder.add(guiVariables, "planetDistanceDivider", 0.5, 100, 0.01).name("Planetary Distances (%)");
+miscFolder.add(guiVariables, "resolutionScale", 1, 200, 0.1).name("Resolution Scale (%)");
 
 
 const debugFolder = gui.addFolder('Debug');
@@ -33517,6 +33519,8 @@ gameTime = 0;
 
 function animate() {
     timescale = guiVariables.timescale * (km / sec) * 52.5;
+
+    renderer.setSize(canvas.clientWidth * (guiVariables.resolutionScale / 100), canvas.clientHeight * (guiVariables.resolutionScale / 100), false);
 
     // Clock
     gameTime += timescale * 72000 / 52.5;
