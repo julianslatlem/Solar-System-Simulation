@@ -26,6 +26,12 @@ import {OrbitControls} from "three/examples/jsm/controls/OrbitControls.js";
 
 import GUI from "three/examples/jsm/libs/lil-gui.module.min.js";
 
+listener = new AudioListener();
+
+music = new Audio(listener);
+
+audioLoader = new AudioLoader();
+
 const gui = new GUI();
 
 const canvas = document.getElementById("three-canvas");
@@ -176,6 +182,8 @@ camera.position.z = -10000 * km;
 camera.position.x = -20000 * km;
 scene.add(camera);
 
+camera.add(listener);
+
 // Renderer
 
 const renderer = new WebGLRenderer({canvas});
@@ -263,20 +271,6 @@ miscFolder.add(guiVariables, "planetDistanceDivider", 1, 200, 0.001).name("Plane
 const debugFolder = gui.addFolder('Debug');
 debugFolder.add(guiVariables, "debug").name("Toggle Debug");
 
-// Audio
-
-const listener = new AudioListener();
-camera.add(listener);
-
-const music = new Audio(listener);
-
-const audioLoader = new AudioLoader();
-audioLoader.load("Assets/Music/music.wav", function(buffer) {
-	music.setBuffer(buffer);
-	music.setLoop(true);
-	music.play();
-});
-
 // Animate
 
 var i = true;
@@ -296,6 +290,12 @@ function animate() {
         let day = Math.floor(gameTime / (3600000 * 24)) % 365;
         clockDiv.textContent = `${day}:${hour}:${min}`.replace(/\b\d\b/g, "0$&");
     }, 50);
+
+    audioLoader.load("Assets/Music/music.wav", function(buffer) {
+        music.setBuffer(buffer);
+        music.setLoop(true);
+        music.play();
+    });
 
 
     const earthDistance = guiVariables.earthDistance / guiVariables.planetDistanceDivider * km;
@@ -374,6 +374,8 @@ function animate() {
     earth.rotateY((guiVariables.earthRotationSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.earthDistance / (340000 * Math.PI), 3)) * timescale);
     earthClouds.rotateY(((120000 * (km / sec)) * timescale) / Math.sqrt(Math.pow(guiVariables.earthSize, 3)));
 
+    // Audio
+    
 	music.setVolume(guiVariables.musicVolume / 100);
 
     if(guiVariables.debug)
