@@ -32,7 +32,13 @@ music = new Audio(listener);
 
 audioLoader = new AudioLoader();
 
-const gui = new GUI();
+audioLoader.load("Assets/Music/music.wav", function(buffer) {
+    music.setBuffer(buffer);
+    music.setLoop(true);
+    music.play();
+});
+
+var gui = new GUI();
 
 const canvas = document.getElementById("three-canvas");
 const scene = new Scene();
@@ -57,6 +63,7 @@ var guiVariables = {
     musicVolume: 0,
     rotateCameraWithEarth: false,
     moonScale: 1,
+    earthScale: 1,
     earthOrbitSpeed: 30,
     jupiterOrbitSpeed: 13,
     earthSize: 6371,
@@ -80,7 +87,7 @@ var guiVariables = {
 const solarSystemCenter = new Vector3(0, 0, -guiVariables.earthDistance * km);
 
 const skyboxGeometry = new SphereGeometry(15000, 20, 10);
-const skyboxMat = new MeshBasicMaterial({opacity: 0.4, transparent: true, map: new TextureLoader().load("Assets/Textures/8k_stars.jpg"), side: BackSide});
+const skyboxMat = new MeshBasicMaterial({opacity: 0.3, transparent: true, map: new TextureLoader().load("Assets/Textures/8k_stars.jpg"), side: BackSide});
 const skybox = new Mesh(skyboxGeometry, skyboxMat);
 scene.add(skybox);
 skybox.renderOrder = -1;
@@ -122,7 +129,7 @@ const earth = new Mesh(earthGeometry, earthMat);
 earth.rotation.x = 0.41;
 earthRot2.add(earth);
 
-const earthCloudsMat = new MeshPhongMaterial({alphaMap: new TextureLoader().load("Assets/Textures/8k_earth_clouds.jpg"), transparent: true});
+const earthCloudsMat = new MeshPhongMaterial({alphaMap: new TextureLoader().load("Assets/Textures/2k_earth_clouds.jpg"), transparent: true});
 const earthClouds = new Mesh(earthGeometry, earthCloudsMat);
 earthClouds.scale.set(1.01, 1.01, 1.01);
 earth.add(earthClouds);
@@ -144,7 +151,7 @@ earthAtmosphere3.scale.set(1.12, 1.12, 1.12);
 earth.add(earthAtmosphere3);
 
 const moonGeometry = new SphereGeometry(guiVariables.moonSize * km, 32, 16);
-const moonMat = new MeshPhongMaterial({map: new TextureLoader().load("Assets/Textures/8k_moon.jpg")});
+const moonMat = new MeshPhongMaterial({map: new TextureLoader().load("Assets/Textures/2k_moon.jpg")});
 const moon = new Mesh(moonGeometry, moonMat);
 
 const moonOrbit = new Mesh(new SphereGeometry(0, 0, 0), new MeshBasicMaterial());
@@ -156,7 +163,7 @@ const jupiterMat = new MeshPhongMaterial({map: new TextureLoader().load("Assets/
 const jupiter = new Mesh(jupiterGeometry, jupiterMat);
 const jupiterOrbit = new Mesh(new SphereGeometry(0, 0, 0), new MeshBasicMaterial());
 scene.add(jupiterOrbit);
-jupiterOrbit.position.z = sun.position.z;
+jupiterOrbit.position.z = solarSystemCenter.z;
 jupiterOrbit.add(jupiter);
 
 const marsGeometry = new SphereGeometry(guiVariables.marsSize * km, 32, 16);
@@ -164,7 +171,7 @@ const marsMat = new MeshPhongMaterial({map: new TextureLoader().load("Assets/Tex
 const mars = new Mesh(marsGeometry, marsMat);
 const marsOrbit = new Mesh(new SphereGeometry(0, 0, 0), new MeshBasicMaterial());
 scene.add(marsOrbit);
-marsOrbit.position.z = sun.position.z;
+marsOrbit.position.z = solarSystemCenter.z;
 marsOrbit.add(mars);
 
 // Lighting
@@ -248,11 +255,11 @@ const timescaleFolder = gui.addFolder('Timescale');
 timescaleFolder.add(guiVariables, "timescale", 0.1, 1000000, 0.01).name("Timescale (s)");
 
 const toggleFolder = gui.addFolder("Toggles");
-toggleFolder.add(skybox, "visible").name("Toggle Skybox");
-toggleFolder.add(moon, "visible").name("Toggle Moon");
-toggleFolder.add(sun, "visible").name("Toggle Sun");
-toggleFolder.add(sunLight, "visible").name("Toggle Sunlight");
-toggleFolder.add(guiVariables, "useHighResTextures").name("Toggle High Resolution Textures");
+toggleFolder.add(skybox, "visible").name("Skybox");
+toggleFolder.add(moon, "visible").name("Moon");
+toggleFolder.add(sun, "visible").name("Sun");
+toggleFolder.add(sunLight, "visible").name("Sunlight");
+toggleFolder.add(guiVariables, "useHighResTextures").name("Use High Resolution Textures");
 
 const cameraFolder = gui.addFolder('Camera');
 cameraFolder.add(guiVariables, "rotateCameraWithEarth").name("Lock Camera to Orbit");
@@ -260,12 +267,13 @@ cameraFolder.add(guiVariables, "rotateCameraWithEarth").name("Lock Camera to Orb
 const earthAndMoonFolder = gui.addFolder("Earth and Moon");
 earthAndMoonFolder.add(guiVariables, "earthOrbitSpeed", 0, 100, 0.001).name("Earth Orbit Speed (km/s)");
 earthAndMoonFolder.add(guiVariables, "moonDistance", 10000, 384400, 1).name("Moon Distance (km)");
+earthAndMoonFolder.add(guiVariables, "earthScale", 0.5, 10, 0.01).name("Earth Scale Multiplier");
 earthAndMoonFolder.add(guiVariables, "moonScale", 0.5, 10, 0.01).name("Moon Scale Multiplier");
 
 const miscFolder = gui.addFolder('Misc');
 miscFolder.add(guiVariables, "musicVolume", 0, 100, 0.1).name("Music Volume (%)");
 miscFolder.add(guiVariables, "jupiterOrbitSpeed", 0, 100, 0.001).name("Jupiter Orbit Speed (km/s)");
-miscFolder.add(guiVariables, "planetDistanceDivider", 1, 200, 0.001).name("Planetary Distances Divider");
+miscFolder.add(guiVariables, "planetDistanceDivider", 0.5, 100, 0.01).name("Planetary Distances (%)");
 
 
 const debugFolder = gui.addFolder('Debug');
@@ -274,8 +282,6 @@ debugFolder.add(guiVariables, "debug").name("Toggle Debug");
 // Animate
 
 var i = true;
-
-let realStartTime = Date.now();
 gameTime = 0;
 
 function animate() {
@@ -284,30 +290,38 @@ function animate() {
     // Clock
     gameTime += timescale * 72000 / 52.5;
     let clockDiv = document.getElementById("worldClock");
+    let dateDiv = document.getElementById("worldDate");
+
+    function dateFromDay(year, day){
+        var date = new Date(year, 0);
+        return new Date(date.setDate(day)).toString();
+      }
+
     let timerId = setInterval(function() {
-        let min = Math.floor(gameTime / 60000) % 60;
-        let hour = Math.floor(gameTime / 3600000) % 24;
-        let day = Math.floor(gameTime / (3600000 * 24)) % 365;
-        clockDiv.textContent = `${day}:${hour}:${min}`.replace(/\b\d\b/g, "0$&");
+        var now = new Date();
+    var start = new Date(now.getFullYear(), 0, 0);
+    var diff = now - start;
+    var oneDay = 1000 * 60 * 60 * 24;
+    var realDay = Math.floor(diff / oneDay);
+
+        let min = Math.floor(gameTime / 60000 + new Date().getMinutes()) % 60;
+        let hour = Math.floor(gameTime / 3600000 + new Date().getHours()) % 24;
+        let day = Math.floor(gameTime / (3600000 * 24) + realDay) % 365;
+        let year = Math.floor(gameTime / (3600000 * 24 * 365) + new Date().getFullYear()) % 10000;
+        clockDiv.textContent = `${hour}:${min}`.replace(/\b\d\b/g, "0$&");
+        dateDiv.textContent = `${dateFromDay(year, day).slice(0, 16)}`.replace(/\b\d\b/g, "$&");
     }, 50);
 
-    audioLoader.load("Assets/Music/music.wav", function(buffer) {
-        music.setBuffer(buffer);
-        music.setLoop(true);
-        music.play();
-    });
-
-
-    const earthDistance = guiVariables.earthDistance / guiVariables.planetDistanceDivider * km;
-    const moonDistance = guiVariables.moonDistance / guiVariables.planetDistanceDivider * km;
-    const marsDistance = guiVariables.marsDistance / guiVariables.planetDistanceDivider * km;
-    const jupiterDistance = guiVariables.jupiterDistance / guiVariables.planetDistanceDivider * km;
+    const earthDistance = guiVariables.earthDistance * (guiVariables.planetDistanceDivider / 100) * km;
+    const moonDistance = guiVariables.moonDistance * (guiVariables.planetDistanceDivider / 100) * km;
+    const marsDistance = guiVariables.marsDistance * (guiVariables.planetDistanceDivider / 100) * km;
+    const jupiterDistance = guiVariables.jupiterDistance * (guiVariables.planetDistanceDivider / 100) * km;
 
     const sunRotationSpeed = 1.997 * (km / sec) / Math.sqrt(Math.pow(guiVariables.sunSize / (10000 * Math.PI), 3));
 
     const earthOrbitSpeed = (guiVariables.earthOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.earthDistance / (100000 * Math.PI), 3));
     const moonOrbitSpeed = (guiVariables.moonOrbitSpeed * (km / h)) / Math.sqrt(Math.pow(9.5, 3));
-    const marsOrbitSpeed = (guiVariables.marsOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.marsDistance / (10000 * Math.PI), 3)) - earthOrbitSpeed;;
+    const marsOrbitSpeed = (guiVariables.marsOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.marsDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;;
     const jupiterOrbitSpeed = (guiVariables.jupiterOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.jupiterDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;;
     
     controls.update();
@@ -333,6 +347,9 @@ function animate() {
             earthMat.map = new TextureLoader().load("Assets/Textures/8k_earth_daymap.jpg");
             earthMat.specularMap = new TextureLoader().load("Assets/Specular Maps/8k_earth_specular_map.jpg");
             earthMat.normalMap = new TextureLoader().load("Assets/Normal Maps/8k_earth_normal_map.jpg");
+            earthCloudsMat.alphaMap = new TextureLoader().load("Assets/Textures/2k_earth_clouds.jpg")
+            
+            moonMat.map = new TextureLoader().load("Assets/Textures/8k_moon.jpg");
         }
     }
 
@@ -346,6 +363,9 @@ function animate() {
             earthMat.map = new TextureLoader().load("Assets/Textures/2k_earth_daymap.jpg");
             earthMat.specularMap = new TextureLoader().load("Assets/Specular Maps/2k_earth_specular_map.jpg");
             earthMat.normalMap = new TextureLoader().load("Assets/Normal Maps/2k_earth_normal_map.jpg");
+            earthCloudsMat.alphaMap = new TextureLoader().load("Assets/Textures/2k_earth_clouds.jpg")
+
+            moonMat.map = new TextureLoader().load("Assets/Textures/2k_moon.jpg");
         }
     }
 
@@ -356,7 +376,9 @@ function animate() {
 
     sunLight.position.z = sun.position.z;
     jupiterOrbit.position.z = sun.position.z;
+    marsOrbit.position.z = sun.position.z;
 
+    earth.scale.set(guiVariables.earthScale, guiVariables.earthScale, guiVariables.earthScale);
     moon.scale.set(guiVariables.moonScale, guiVariables.moonScale, guiVariables.moonScale);
 
     skybox.position.x = camera.position.x;

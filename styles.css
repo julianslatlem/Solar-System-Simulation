@@ -3,6 +3,7 @@
 	padding: 0;
     box-sizing: border-box;
     overflow: hidden;
+    font-family: 'Lato', sans-serif;
 }
 
 #three-canvas {
@@ -12,7 +13,7 @@
     outline: none;
 }
 
-#worldClock {
+#worldClockText {
 	position: absolute;
 	top: 10px;
 	width: 100%;
@@ -20,5 +21,31 @@
 	z-index: 100;
 	display:block;
     color: white;
-    font-size: 200%;
+    font-size: 270%;
+    user-select: none;
+    font-weight: 600;
+}
+
+#worldDate {
+	position: absolute;
+	top: 70px;
+	width: 100%;
+	text-align: center;
+	z-index: 100;
+	display:block;
+    color: white;
+    font-size: 150%;
+    user-select: none;
+}
+
+#worldClock {
+	position: absolute;
+	top: 105px;
+	width: 100%;
+	text-align: center;
+	z-index: 100;
+	display:block;
+    color: white;
+    font-size: 150%;
+    user-select: none;
 }
