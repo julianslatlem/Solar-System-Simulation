@@ -3,7 +3,7 @@
   "name": "threejs-solar-system-simulation",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index_old.js",
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c -w"
@@ -14,10 +14,10 @@
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.1.0",
     "dat.gui": "^0.7.9",
-    "rollup": "^3.23.0"
+    "rollup": "^3.23.0",
+    "stats.js": "^0.17.0"
   },
   "dependencies": {
-    "stats.js": "^0.17.0",
     "three": "^0.153.0"
   }
 }
