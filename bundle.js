@@ -29968,6 +29968,127 @@ class CircleGeometry extends BufferGeometry {
 
 }
 
+class RingGeometry extends BufferGeometry {
+
+	constructor( innerRadius = 0.5, outerRadius = 1, thetaSegments = 32, phiSegments = 1, thetaStart = 0, thetaLength = Math.PI * 2 ) {
+
+		super();
+
+		this.type = 'RingGeometry';
+
+		this.parameters = {
+			innerRadius: innerRadius,
+			outerRadius: outerRadius,
+			thetaSegments: thetaSegments,
+			phiSegments: phiSegments,
+			thetaStart: thetaStart,
+			thetaLength: thetaLength
+		};
+
+		thetaSegments = Math.max( 3, thetaSegments );
+		phiSegments = Math.max( 1, phiSegments );
+
+		// buffers
+
+		const indices = [];
+		const vertices = [];
+		const normals = [];
+		const uvs = [];
+
+		// some helper variables
+
+		let radius = innerRadius;
+		const radiusStep = ( ( outerRadius - innerRadius ) / phiSegments );
+		const vertex = new Vector3();
+		const uv = new Vector2();
+
+		// generate vertices, normals and uvs
+
+		for ( let j = 0; j <= phiSegments; j ++ ) {
+
+			for ( let i = 0; i <= thetaSegments; i ++ ) {
+
+				// values are generate from the inside of the ring to the outside
+
+				const segment = thetaStart + i / thetaSegments * thetaLength;
+
+				// vertex
+
+				vertex.x = radius * Math.cos( segment );
+				vertex.y = radius * Math.sin( segment );
+
+				vertices.push( vertex.x, vertex.y, vertex.z );
+
+				// normal
+
+				normals.push( 0, 0, 1 );
+
+				// uv
+
+				uv.x = ( vertex.x / outerRadius + 1 ) / 2;
+				uv.y = ( vertex.y / outerRadius + 1 ) / 2;
+
+				uvs.push( uv.x, uv.y );
+
+			}
+
+			// increase the radius for next row of vertices
+
+			radius += radiusStep;
+
+		}
+
+		// indices
+
+		for ( let j = 0; j < phiSegments; j ++ ) {
+
+			const thetaSegmentLevel = j * ( thetaSegments + 1 );
+
+			for ( let i = 0; i < thetaSegments; i ++ ) {
+
+				const segment = i + thetaSegmentLevel;
+
+				const a = segment;
+				const b = segment + thetaSegments + 1;
+				const c = segment + thetaSegments + 2;
+				const d = segment + 1;
+
+				// faces
+
+				indices.push( a, b, d );
+				indices.push( b, c, d );
+
+			}
+
+		}
+
+		// build geometry
+
+		this.setIndex( indices );
+		this.setAttribute( 'position', new Float32BufferAttribute( vertices, 3 ) );
+		this.setAttribute( 'normal', new Float32BufferAttribute( normals, 3 ) );
+		this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
+
+	}
+
+	copy( source ) {
+
+		super.copy( source );
+
+		this.parameters = Object.assign( {}, source.parameters );
+
+		return this;
+
+	}
+
+	static fromJSON( data ) {
+
+		return new RingGeometry( data.innerRadius, data.outerRadius, data.thetaSegments, data.phiSegments, data.thetaStart, data.thetaLength );
+
+	}
+
+}
+
 class SphereGeometry extends BufferGeometry {
 
 	constructor( radius = 1, widthSegments = 32, heightSegments = 16, phiStart = 0, phiLength = Math.PI * 2, thetaStart = 0, thetaLength = Math.PI ) {
@@ -33289,15 +33410,14 @@ minutes = 0;
 hours = minutes / 60;
 
 var guiVariables = {
-    timescale: 3000,
+    timescale: 300,
     debug: false,
     musicVolume: 0,
     rotateCameraWithEarth: false,
-    moonScale: 1,
-    earthScale: 1,
-    earthOrbitSpeed: 30,
+    earthOrbitSpeed: 29.78,
     jupiterOrbitSpeed: 13,
     earthSize: 6371,
+    mercurySize: 2439,
     sunSize: 696340,
     jupiterSize: 69911,
     marsSize: 3389.5,
@@ -33306,6 +33426,8 @@ var guiVariables = {
     planetDistanceDivider: 10,
     earthDistance: 151750000,
     marsDistance: 250700000,
+    mercuryDistance: 58545000,
+    mercuryOrbitSpeed: 47,
     marsOrbitSpeed: 24.08,
     moonDistance: 384400,
     moonOrbitSpeed: 3683,
@@ -33313,6 +33435,12 @@ var guiVariables = {
     useHighResTextures: false,
     resolutionScale: 100,
     useDeltaTime: false,
+    lockToEarth: false,
+    saturnSize: 58232,
+    saturnDistance: 1463600000,
+    saturnOrbitSpeed: 9.67,
+    planetScalePercent: 100,
+    pause: false,
 };
 
 // Objects
@@ -33320,7 +33448,7 @@ var guiVariables = {
 const solarSystemCenter = new Vector3(0, 0, -guiVariables.earthDistance * km);
 
 const skyboxGeometry = new SphereGeometry(15000, 20, 10);
-const skyboxMat = new MeshBasicMaterial({opacity: 0.3, transparent: true, map: new TextureLoader().load("Assets/Textures/8k_stars.jpg"), side: BackSide});
+const skyboxMat = new MeshBasicMaterial({opacity: 0.3, transparent: true, map: new TextureLoader().load("Assets/Textures/8k_stars_milky_way.jpg"), side: BackSide});
 const skybox = new Mesh(skyboxGeometry, skyboxMat);
 scene.add(skybox);
 skybox.renderOrder = -1;
@@ -33370,17 +33498,17 @@ earthClouds.renderOrder = 1;
 
 const earthAtmosphereMat1 = new MeshBasicMaterial({color: "#a8e2ff", transparent: true, opacity: 0.15, side: BackSide});
 const earthAtmosphere1 = new Mesh(earthGeometry, earthAtmosphereMat1);
-earthAtmosphere1.scale.set(1.03, 1.03, 1.03);
+earthAtmosphere1.scale.set(1.02, 1.02, 1.02);
 earth.add(earthAtmosphere1);
 
 const earthAtmosphereMat2 = new MeshBasicMaterial({color: "#6bceff", transparent: true, opacity: 0.1, side: BackSide});
 const earthAtmosphere2 = new Mesh(earthGeometry, earthAtmosphereMat2);
-earthAtmosphere2.scale.set(1.08, 1.08, 1.08);
+earthAtmosphere2.scale.set(1.04, 1.04, 1.04);
 earth.add(earthAtmosphere2);
 
 const earthAtmosphereMat3 = new MeshBasicMaterial({color: "#1fb4ff", transparent: true, opacity: 0.04, side: BackSide});
 const earthAtmosphere3 = new Mesh(earthGeometry, earthAtmosphereMat3);
-earthAtmosphere3.scale.set(1.12, 1.12, 1.12);
+earthAtmosphere3.scale.set(1.07, 1.07, 1.07);
 earth.add(earthAtmosphere3);
 
 const moonGeometry = new SphereGeometry(guiVariables.moonSize * km, 32, 16);
@@ -33406,6 +33534,41 @@ const marsOrbit = new Mesh(new SphereGeometry(0, 0, 0), new MeshBasicMaterial())
 scene.add(marsOrbit);
 marsOrbit.position.z = solarSystemCenter.z;
 marsOrbit.add(mars);
+
+const mercuryGeometry = new SphereGeometry(guiVariables.mercurySize * km, 32, 16);
+const mercuryMat = new MeshPhongMaterial({map: new TextureLoader().load("Assets/Textures/2k_mercury.jpg")});
+const mercury = new Mesh(mercuryGeometry, mercuryMat);
+const mercuryOrbit = new Mesh(new SphereGeometry(0, 0, 0), new MeshBasicMaterial());
+scene.add(mercuryOrbit);
+mercuryOrbit.position.z = solarSystemCenter.z;
+mercuryOrbit.add(mercury);
+
+const saturnGeometry = new SphereGeometry(guiVariables.saturnSize * km, 32, 16);
+const saturnMat = new MeshPhongMaterial({map: new TextureLoader().load("Assets/Textures/2k_saturn.jpg")});
+const saturn = new Mesh(saturnGeometry, saturnMat);
+const saturnOrbit = new Mesh(new SphereGeometry(0, 0, 0), new MeshBasicMaterial());
+scene.add(saturnOrbit);
+saturnOrbit.position.z = solarSystemCenter.z;
+saturnOrbit.add(saturn);
+
+const saturnRingGeometry = new RingGeometry(3, 5, 64);
+var pos = saturnRingGeometry.attributes.position;
+var v3 = new Vector3();
+for (let i = 0; i < pos.count; i++){
+  v3.fromBufferAttribute(pos, i);
+  saturnRingGeometry.attributes.uv.setXY(i, v3.length() < 4 ? 0 : 1, 1);
+}
+const saturnRingMaterial = new MeshBasicMaterial({
+  map: new TextureLoader().load("Assets/Textures/2k_saturn_ring_alpha.png"),
+  color: "#ffffff",
+  side: DoubleSide,
+  transparent: true,
+  opacity: 0.5,
+});
+const saturnRing = new Mesh(saturnRingGeometry, saturnRingMaterial);
+saturn.add(saturnRing);
+saturnRing.scale.set(3,3,3);
+saturnRing.rotateX(1.3);
 
 // Lighting
 
@@ -33438,11 +33601,13 @@ window.addEventListener('resize', () => {
 // Controls
 
 const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.minDistance = 0;
-controls.maxDistance = 500;
 controls.target = earth.position;
+controls.enableDamping = true;
+controls.dampingFactor = 0.1;
+controls.minDistance = 0;
+controls.maxDistance = 1000;
 controls.autoRotate = true;
+controls.enablePan = false;
 
 // Debug
 
@@ -33485,7 +33650,8 @@ moon.add(moonline2);
 // GUI
 
 const timescaleFolder = gui.addFolder('Timescale');
-timescaleFolder.add(guiVariables, "timescale", 0.1, 1000000, 0.01).name("Timescale (s)");
+timescaleFolder.add(guiVariables, "timescale", 1, 10000, 0.01).name("Timescale (min/s)");
+timescaleFolder.add(guiVariables, "pause").name("Pause");
 
 const toggleFolder = gui.addFolder("Toggles");
 toggleFolder.add(skybox, "visible").name("Skybox");
@@ -33497,17 +33663,16 @@ toggleFolder.add(guiVariables, "useDeltaTime").name("Accurate Time (may cause ji
 
 const cameraFolder = gui.addFolder('Camera');
 cameraFolder.add(guiVariables, "rotateCameraWithEarth").name("Lock Camera to Orbit");
+cameraFolder.add(guiVariables, "lockToEarth").name("Lock Camera to Earth");
 
 const earthAndMoonFolder = gui.addFolder("Earth and Moon");
 earthAndMoonFolder.add(guiVariables, "earthOrbitSpeed", 0, 100, 0.001).name("Earth Orbit Speed (km/s)");
 earthAndMoonFolder.add(guiVariables, "moonDistance", 10000, 384400, 1).name("Moon Distance (km)");
-earthAndMoonFolder.add(guiVariables, "earthScale", 0.5, 10, 0.01).name("Earth Scale Multiplier");
-earthAndMoonFolder.add(guiVariables, "moonScale", 0.5, 10, 0.01).name("Moon Scale Multiplier");
 
 const miscFolder = gui.addFolder('Misc');
 miscFolder.add(guiVariables, "musicVolume", 0, 100, 0.1).name("Music Volume (%)");
-miscFolder.add(guiVariables, "jupiterOrbitSpeed", 0, 100, 0.001).name("Jupiter Orbit Speed (km/s)");
 miscFolder.add(guiVariables, "planetDistanceDivider", 0.5, 100, 0.01).name("Planetary Distances (%)");
+miscFolder.add(guiVariables, "planetScalePercent", 100, 1000, 0.1).name("Planet Scales (%)");
 miscFolder.add(guiVariables, "resolutionScale", 1, 200, 0.1).name("Resolution Scale (%)");
 
 
@@ -33521,16 +33686,25 @@ gameTime = 0;
 
 const clock = new Clock();
 
+realMinutes = new Date().getMinutes();
+
+realHours = new Date().getHours();
+
 function animate() {
     const delta = clock.getDelta();
 
     if(guiVariables.useDeltaTime)
     {
-        timescale = (guiVariables.timescale * (km / sec) * 52.5) * delta * 144;
+        timescale = ((guiVariables.timescale * (km / sec) * 52.5) * 60) * delta * 144;
     }
     else
     {
-        timescale = (guiVariables.timescale * (km / sec) * 52.5);
+        timescale = ((guiVariables.timescale * (km / sec) * 52.5) * 60);
+    }
+
+    if(guiVariables.pause)
+    {
+        timescale = 0;
     }
 
     renderer.setSize(canvas.clientWidth * (guiVariables.resolutionScale / 100), canvas.clientHeight * (guiVariables.resolutionScale / 100), false);
@@ -33551,9 +33725,8 @@ function animate() {
     var diff = now - start;
     var oneDay = 1000 * 60 * 60 * 24;
     var realDay = Math.floor(diff / oneDay);
-
-        let min = Math.floor(gameTime / 60000 + new Date().getMinutes()) % 60;
-        let hour = Math.floor(gameTime / 3600000 + new Date().getHours()) % 24;
+        let min = Math.floor(gameTime / 60000 + realMinutes) % 60;
+        let hour = Math.floor(gameTime / 3600000 + realHours) % 24;
         let day = Math.floor(gameTime / (3600000 * 24) + realDay) % 365;
         let year = Math.floor(gameTime / (3600000 * 24 * 365) + new Date().getFullYear()) % 10000;
         clockDiv.textContent = `${hour}:${min}`.replace(/\b\d\b/g, "0$&");
@@ -33564,13 +33737,14 @@ function animate() {
     guiVariables.moonDistance * (guiVariables.planetDistanceDivider / 100) * km;
     const marsDistance = guiVariables.marsDistance * (guiVariables.planetDistanceDivider / 100) * km;
     const jupiterDistance = guiVariables.jupiterDistance * (guiVariables.planetDistanceDivider / 100) * km;
+    const mercuryDistance = guiVariables.mercuryDistance * (guiVariables.planetDistanceDivider / 100) * km;
+    const saturnDistance = guiVariables.saturnDistance * (guiVariables.planetDistanceDivider / 100) * km;
 
     const sunRotationSpeed = 1.997 * (km / sec) / Math.sqrt(Math.pow(guiVariables.sunSize / (10000 * Math.PI), 3));
 
     const earthOrbitSpeed = (guiVariables.earthOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.earthDistance / (100000 * Math.PI), 3));
     const moonOrbitSpeed = (guiVariables.moonOrbitSpeed * (km / h)) / Math.sqrt(Math.pow(9.5, 3));
-    const marsOrbitSpeed = (guiVariables.marsOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.marsDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;    const jupiterOrbitSpeed = (guiVariables.jupiterOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.jupiterDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;    
-    controls.autoRotateSpeed = (guiVariables.earthOrbitSpeed * (km / sec) * 572.95) / Math.sqrt(Math.pow(guiVariables.earthDistance / (100000 * Math.PI), 3)) * timescale;
+    const marsOrbitSpeed = (guiVariables.marsOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.marsDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;    const jupiterOrbitSpeed = (guiVariables.jupiterOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.jupiterDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;    const mercuryOrbitSpeed = (guiVariables.mercuryOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.mercuryDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;    const saturnOrbitSpeed = (guiVariables.saturnOrbitSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.saturnDistance / (100000 * Math.PI), 3)) - earthOrbitSpeed;    
     controls.minDistance = earth.scale.x * 1.5;
     controls.update();
 
@@ -33580,7 +33754,14 @@ function animate() {
     }
     else
     {
+        controls.autoRotateSpeed = (guiVariables.earthOrbitSpeed * (km / sec) * 572.95) / Math.sqrt(Math.pow(guiVariables.earthDistance / (100000 * Math.PI), 3)) * timescale;
         controls.autoRotate = true;
+    }
+
+    if(guiVariables.lockToEarth)
+    {
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = -(guiVariables.earthRotationSpeed * (km / sec) * 572.95) / Math.sqrt(Math.pow(guiVariables.earthDistance / (340000 * Math.PI), 3)) * timescale;
     }
 
     if(guiVariables.useHighResTextures && i)
@@ -33618,25 +33799,35 @@ function animate() {
     moon.position.z = guiVariables.moonDistance * km;
 
     sun.position.z = -earthDistance;
-    mars.position.z = marsDistance;
 
     sunLight.position.z = sun.position.z;
     jupiterOrbit.position.z = sun.position.z;
     marsOrbit.position.z = sun.position.z;
+    mercuryOrbit.position.z = sun.position.z;
+    saturnOrbit.position.z = sun.position.z;
 
-    earth.scale.set(guiVariables.earthScale, guiVariables.earthScale, guiVariables.earthScale);
-    moon.scale.set(guiVariables.moonScale, guiVariables.moonScale, guiVariables.moonScale);
+    earth.scale.set(guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100);
+    moon.scale.set(guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100);
+    mercury.scale.set(guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100);
+    mars.scale.set(guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100);
+    jupiter.scale.set(guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100);
+    saturn.scale.set(guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100, guiVariables.planetScalePercent / 100);
 
     skybox.position.x = camera.position.x;
     skybox.position.y = camera.position.y;
     skybox.position.z = camera.position.z;
 
     jupiter.position.z = jupiterDistance;
+    mercury.position.z = mercuryDistance;
+    mars.position.z = marsDistance;
+    saturn.position.z = saturnDistance;
 
     skybox.rotateY(-earthOrbitSpeed * timescale);
     sun.rotateY((-earthOrbitSpeed + sunRotationSpeed) * timescale);
     moonOrbit.rotateY(moonOrbitSpeed * timescale);
     marsOrbit.rotateY(marsOrbitSpeed * timescale);
+    mercuryOrbit.rotateY(mercuryOrbitSpeed * timescale);
+    saturnOrbit.rotateY(saturnOrbitSpeed * timescale);
     earthRot2.rotateY(0.00000027 * timescale);
     jupiterOrbit.rotateY(jupiterOrbitSpeed * timescale);
     earth.rotateY((guiVariables.earthRotationSpeed * (km / sec)) / Math.sqrt(Math.pow(guiVariables.earthDistance / (340000 * Math.PI), 3)) * timescale);
